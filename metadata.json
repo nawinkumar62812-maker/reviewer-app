@@ -1,0 +1,6 @@
+{
+  "name": "Blinded Review Portal",
+  "description": "Secure, blinded peer review and benchmark evaluation portal with ZIP ingestion, personal review links, real-time tracking, and combined response exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

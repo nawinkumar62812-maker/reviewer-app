@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blinded Review Portal</title>
+<style>
+:root{--bg:#f6f6f3;--cd:#fff;--tx:#1a1a1a;--mu:#55575c;--ac:#1d4ed8;--on:#fff;--bd:#cfcfc9;--ok:#14733f;--er:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14151a;--cd:#1e2027;--tx:#ececec;--mu:#a9acb4;--ac:#8ab4ff;--on:#0b1220;--bd:#3b3e48;--ok:#5fd68f;--er:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14151a;--cd:#1e2027;--tx:#ececec;--mu:#a9acb4;--ac:#8ab4ff;--on:#0b1220;--bd:#3b3e48;--ok:#5fd68f;--er:#ff8a80;color-scheme:dark}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--tx);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--cd);border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header b{font-size:17px}#live{margin-left:auto;color:var(--mu);font-size:14px}
+main{max-width:1240px;margin:0 auto;padding:16px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
+.g{display:grid;gap:16px;grid-template-columns:minmax(0,3fr) minmax(300px,2fr);align-items:start}
+@media(max-width:860px){.g{grid-template-columns:1fr}}
+.side{position:sticky;top:64px}@media(max-width:860px){.side{position:static}}
+pre{margin:0;overflow:auto;max-height:60vh;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:12px;font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
+.t{white-space:pre-wrap;margin:0}.mu{color:var(--mu)}
+button,.btn{font:inherit;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--bd);background:var(--cd);color:var(--tx);cursor:pointer}
+button.p{background:var(--ac);color:var(--on);border-color:var(--ac);font-weight:600}button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+input[type=text],input[type=email],textarea{width:100%;box-sizing:border-box;font:inherit;padding:10px 12px;min-height:44px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
+label.f{display:block;margin:10px 0 4px;font-weight:600}
+fieldset{border:0;margin:0 0 14px;padding:0}legend{font-weight:600;padding:0;margin-bottom:6px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}.pill{position:relative}
+.pill input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pill span{display:inline-block;min-height:44px;line-height:42px;padding:0 14px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
+.pill input:checked+span{background:var(--ac);color:var(--on);border-color:var(--ac);font-weight:600}
+.pill input:checked+span::before{content:"✓ "}.pill input:focus-visible+span{outline:3px solid var(--ac);outline-offset:2px}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;bottom:env(safe-area-inset-bottom,0px);background:var(--bg);padding:10px 0}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid var(--bd);text-align:left;font-size:14px}
+details summary{cursor:pointer;color:var(--mu);min-height:32px}.err{color:var(--er)}.ok{color:var(--ok)}
+</style></head><body>
+<header><b>Blinded Review Portal</b><span id="tabs"></span><span id="live" role="status" aria-live="polite"></span></header>
+<main id="app"><p>Loading…</p></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const L=["Q1 clarification question relevant to the requirement? (yes/no/na)","Q2 identifies the intended ambiguity? (yes/no/na)","Q3 oracle answer faithful to the frozen text and only answers the question? (yes/no/na)","Q4 RTL follows the oracle answer? (yes/no/partly/na)","Q5 RTL introduces unrelated assumptions? (yes/no)","Q6 main failure cause (ambiguity/implementation/syntax/interface/formal-tool-limit/none)"];
+const O=[["yes","no","na"],["yes","no","na"],["yes","no","na"],["yes","no","partly","na"],["yes","no"],["ambiguity","implementation","syntax","interface","formal-tool-limit","none"]];
+const T=["Is the model’s clarification question relevant to the requirement?","Does it identify the intended ambiguity?","Is the oracle answer faithful to the frozen text, and does it only answer the question?","Does the RTL follow the oracle answer?","Does the RTL introduce unrelated assumptions?","What is the main failure cause?"];
+const S={items:[],a:{},me:{},i:0,owner:false,tab:'rev',db:null,dl:null,uid:''};
+const app=document.getElementById('app'),say=m=>document.getElementById('live').textContent=m;
+const h=(t,a,...k)=>{const e=document.createElement(t);for(const x in a||{}){const v=a[x];if(x.startsWith('on'))e.addEventListener(x.slice(2),v);else if(x==='cls')e.className=v;else if(v!==false&&v!=null)e.setAttribute(x,v===true?'':v)}for(const c of k.flat())if(c!=null)e.append(c);return e};
+const show=(...k)=>{app.replaceChildren(...k)};
+const need=it=>[it.q.length?0:-1,it.q.length?1:-1,it.q.length?2:-1,it.o?3:-1,4,5].filter(x=>x>=0);
+const full=it=>{const a=S.a[it.i];return !!a&&need(it).every(k=>a.v[k])};
+const nDone=()=>S.items.filter(full).length;
+let tm;
+function save(){say('Saving…');clearTimeout(tm);tm=setTimeout(async()=>{
+ try{localStorage.setItem('rv'+S.uid,JSON.stringify({me:S.me,a:S.a}))}catch(e){}
+ try{await S.db.doc('responses/'+S.uid).set({name:S.me.name,email:S.me.email,sub:!!S.me.sub,a:S.a,at:Date.now()});say('Saved ✓ '+new Date().toLocaleTimeString())}
+ catch(e){say('Not synced ('+(e.code||e.message)+'). Answers are kept in this browser; use “Download my file”.')}},500)}
+function setv(it,k,v){const a=S.a[it.i]=S.a[it.i]||{v:[],n:''};a.v[k]=v;if(!it.q.length)[0,1,2].forEach(j=>a.v[j]='na');if(!it.o)a.v[3]='na';save()}
+const qq=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+function csv(name,a,email){const r=[['review_id','reviewer',...L,'Notes',...(email?['reviewer_email']:[])]];
+ for(const it of S.items){const x=a[it.i];if(x)r.push([it.i,name,...[0,1,2,3,4,5].map(k=>x.v[k]||''),x.n||'',...(email?[email]:[])])}
+ return r.map(l=>l.map(qq).join(',')).join('\r\n')+'\r\n'}
+async function dl(name,data){if(!S.dl)return say('Downloads are unavailable in this view.');try{await S.dl.save({filename:name,data})}catch(e){say('Download cancelled.')}}
+const fn=n=>'review_form_'+String(n||'reviewer').trim().replace(/\s+/g,'_').replace(/[^\w.-]/g,'')+'.csv';
+function clean(j){const rp=j.requirement_prompt||'',a=rp.split('REQUIREMENT'),rest=a.length>1?a.slice(1).join('REQUIREMENT'):rp,b=rest.split('MODULE PORTS'),mq=j.model_question;
+ return{i:j.review_id,r:b[0].trim(),p:b.length>1?'MODULE PORTS'+b.slice(1).join('MODULE PORTS').trim():'',q:Array.isArray(mq)?mq:(mq?[mq]:[]),o:j.oracle_answer||'',c:typeof j.generated_response==='string'?j.generated_response:''}}
+/* whitelist above: formal_outcome and evidence_logs are never read, so they can never be stored or shown */
+
+function tabs(){const t=document.getElementById('tabs');t.replaceChildren();if(!S.owner)return;
+ for(const[k,n]of[['rev','Review'],['adm','Admin']])t.append(h('button',{'aria-pressed':S.tab===k,cls:S.tab===k?'p':'',onclick:()=>{S.tab=k;go()}},n))}
+function go(){tabs();if(S.tab==='adm')return admin();if(!S.items.length)return show(h('div',{cls:'card'},h('h2',{},'Not open yet'),h('p',{},'The study lead has not uploaded the review set yet. Please check back later.')));
+ if(!S.me.name||!S.me.email)return intro();review()}
+function intro(){const n=h('input',{type:'text',id:'n',autocomplete:'name',value:S.me.name||''}),e=h('input',{type:'email',id:'e',autocomplete:'email',value:S.me.email||''}),c=h('input',{type:'checkbox',id:'c'}),m=h('p',{cls:'err',role:'alert'});
+ show(h('div',{cls:'card'},h('h2',{},'Before you start'),h('p',{},'You will review '+S.items.length+' blinded items and answer up to six questions for each. Your progress saves automatically, so you can stop and resume at any time.'),
+ h('label',{cls:'f',for:'n'},'Full name'),n,h('label',{cls:'f',for:'e'},'Gmail / email address'),e,
+ h('p',{},c,h('label',{for:'c'},' I agree that my name, email and answers are shared with the study lead.')),m,
+ h('button',{cls:'p',onclick:()=>{if(!n.value.trim()||!/^\S+@\S+\.\S+$/.test(e.value.trim()))return m.textContent='Please enter your name and a valid email address.';if(!c.checked)return m.textContent='Please tick the agreement to continue.';S.me={...S.me,name:n.value.trim(),email:e.value.trim()};save();go()}},'Start reviewing')))}
+function review(){const it=S.items[S.i],a=S.a[it.i]||{v:[],n:''},pc=Math.round(nDone()/S.items.length*100);
+ const grp=k=>{const f=h('fieldset',{},h('legend',{},L[k].split(' ')[0]+' · '+T[k]),h('div',{cls:'opts',role:'radiogroup'},O[k].map(o=>h('label',{cls:'pill'},h('input',{type:'radio',name:'q'+k,value:o,checked:a.v[k]===o,onchange:()=>{setv(it,k,o);bar()}}),h('span',{},o)))));return f};
+ const auto=(txt)=>h('p',{cls:'mu'},txt);
+ const hasQ=it.q.length>0;
+ const left=[h('div',{cls:'card'},h('h2',{},'Requirement'),h('p',{cls:'t'},it.r),it.p?h('details',{},h('summary',{},'Module ports & output rules'),h('p',{cls:'t mu'},it.p)):null),
+  h('div',{cls:'card'},h('h2',{},'Model question & oracle answer'),hasQ?h('div',{},h('p',{cls:'t'},it.q.join('\n\n')),h('p',{cls:'mu'},'Oracle answer'),h('p',{cls:'t'},it.o||'(none)')):auto('No model question for this item.')),
+  h('div',{cls:'card'},h('h2',{},'Generated response'),h('pre',{tabindex:0,role:'region','aria-label':'Generated response code'},it.c||'(no response)'))];
+ const nt=h('textarea',{rows:3,id:'nt','aria-label':'Notes (optional)',oninput:e=>{const x=S.a[it.i]=S.a[it.i]||{v:[],n:''};x.n=e.target.value;save()}});nt.value=a.n||'';
+ const side=h('div',{cls:'card side'},h('div',{cls:'bar',role:'progressbar','aria-valuenow':pc,'aria-valuemin':0,'aria-valuemax':100},h('i',{style:'width:'+pc+'%',id:'pb'})),h('p',{cls:'mu',id:'pt'},nDone()+' of '+S.items.length+' complete'),
+  hasQ?[grp(0),grp(1),grp(2)]:auto('Q1–Q3 are recorded as “na” automatically.'),it.o?grp(3):auto('Q4 is recorded as “na” (no oracle answer).'),grp(4),grp(5),h('label',{cls:'f',for:'nt'},'Notes (optional)'),nt);
+ const go2=d=>{S.i=Math.max(0,Math.min(S.items.length-1,S.i+d));review();scrollTo(0,0)};
+ const nx=S.items.findIndex((x,j)=>j>S.i&&!full(x)),fin=nDone()===S.items.length;
+ const nav=h('div',{cls:'nav'},h('button',{onclick:()=>go2(-1),disabled:S.i===0},'← Previous'),h('b',{},it.i+' · '+(S.i+1)+' / '+S.items.length),h('button',{cls:'p',onclick:()=>go2(1),disabled:S.i===S.items.length-1},'Next →'),
+  h('button',{onclick:()=>{const j=nx>=0?nx:S.items.findIndex(x=>!full(x));if(j>=0){S.i=j;review();scrollTo(0,0)}},disabled:fin},'Next unanswered'),
+  h('button',{onclick:()=>dl(fn(S.me.name),csv(S.me.name,S.a))},'Download my file'),
+  fin?h('button',{cls:'p',onclick:()=>{S.me.sub=true;save();done()}},S.me.sub?'Resubmit':'Submit final answers'):null);
+ show(h('div',{cls:'g'},h('div',{},left),side),nav)}
+function bar(){const p=Math.round(nDone()/S.items.length*100);document.getElementById('pb').style.width=p+'%';document.getElementById('pt').textContent=nDone()+' of '+S.items.length+' complete';review2()}
+function review2(){/* refresh nav so Submit appears when all answered, without losing focus */const n=document.querySelector('.nav');if(n&&nDone()===S.items.length&&!n.querySelector('.fin')){const b=h('button',{cls:'p fin',onclick:()=>{S.me.sub=true;save();done()}},'Submit final answers');n.append(b)}}
+function done(){show(h('div',{cls:'card'},h('h2',{},'Thank you'),h('p',{},'Your answers were submitted to the study lead. If your final file did not sync, download it and email it to them.'),
+ h('button',{cls:'p',onclick:()=>dl(fn(S.me.name),csv(S.me.name,S.a))},'Download my file'),' ',h('button',{onclick:review},'Back to my answers')))}
+async function admin(){const st=h('p',{id:'ust',cls:'mu',role:'status'}),fi=h('input',{type:'file',accept:'.zip','aria-label':'Review set zip',onchange:e=>e.target.files[0]&&up(e.target.files[0],st)}),res=h('div',{},h('p',{cls:'mu'},'Loading responses…'));
+ show(h('div',{cls:'card'},h('h2',{},'1 · Upload the review set'),h('p',{},'Choose the zip. It is read in your browser; only the blinded fields (requirement, model question, oracle answer, generated response) are stored. Formal outcomes and evidence logs are discarded.'),fi,st,S.items.length?h('p',{cls:'ok'},'Currently live: '+S.items.length+' items.'):null),
+ h('div',{cls:'card'},h('h2',{},'2 · Share'),h('p',{},'Use Share on this page and invite each reviewer by email as a Contributor/Editor (so they can submit), then send them the link. Reviewers cannot see each other’s answers.')),
+ h('div',{cls:'card'},h('h2',{},'3 · Collect answered files'),res));
+ try{const s=await S.db.collection('responses').get(),rows=s.docs.map(d=>({id:d.id,...d.data()}));res.replaceChildren(rows.length?h('table',{},h('tr',{},['Reviewer','Email','Complete','Submitted','File'].map(x=>h('th',{},x))),rows.map(r=>{const c=S.items.filter(it=>{const a=(r.a||{})[it.i];return a&&need(it).every(k=>a.v[k])}).length;return h('tr',{},h('td',{},r.name||'?'),h('td',{},r.email||''),h('td',{},c+' / '+S.items.length),h('td',{},r.sub?'Yes':'No'),h('td',{},h('button',{onclick:()=>dl(fn(r.name),csv(r.name,r.a||{}))},'Download CSV')))})):h('p',{cls:'mu'},'No responses yet.'),
+  rows.length?h('p',{},h('button',{cls:'p',onclick:()=>dl('review_forms_all_reviewers.csv',rows.map((r,j)=>csv(r.name,r.a||{},r.email).split('\r\n').filter((l,k)=>l&&(j===0||k>0)).join('\r\n')).join('\r\n')+'\r\n')},'Download all (combined CSV)')):null)}
+ catch(e){res.replaceChildren(h('p',{cls:'err'},'Could not load responses: '+(e.code||e.message)))}}
+async function up(f,st){try{const z=await JSZip.loadAsync(f),ns=Object.keys(z.files).filter(n=>/items\/R\d+\.json$/.test(n)).sort();if(!ns.length)throw Error('no items/R###.json files found in this zip');
+ const its=[];for(const n of ns)its.push(clean(JSON.parse(await z.files[n].async('string'))));const ch=[];for(let i=0;i<its.length;i+=25)ch.push(its.slice(i,i+25));
+ for(let i=0;i<ch.length;i++){st.textContent='Publishing '+(i+1)+' of '+ch.length+'…';await S.db.doc('items/c'+String(i).padStart(3,'0')).set({k:ch[i]})}
+ await S.db.doc('meta/set').set({n:its.length,c:ch.length,at:Date.now()});S.items=its;st.textContent='Done: '+its.length+' items are live.';st.className='ok'}
+ catch(e){st.textContent='Upload failed: '+(e.message||e.code);st.className='err'}}
+async function load(){const m=await S.db.doc('meta/set').get();if(!m.exists)return;const d=m.data(),p=[];for(let i=0;i<d.c;i++)p.push(S.db.doc('items/c'+String(i).padStart(3,'0')).get());
+ S.items=(await Promise.all(p)).flatMap(s=>s.exists?s.data().k:[])}
+(async()=>{const[u,db,d]=await Promise.all([claude.use('user'),claude.use('db'),claude.use('downloads')]);S.db=db;S.dl=d;
+ if(!db)return show(h('div',{cls:'card'},h('h2',{},'Sign in required'),h('p',{},'Please open this page while signed in to Claude, using the email address the study lead invited.')));
+ S.owner=!!(u&&u.isOwner());S.uid=u?await u.id():'anon';if(S.owner)S.tab='adm';
+ try{await load()}catch(e){return show(h('p',{cls:'err'},'Could not load the review set: '+(e.code||e.message)))}
+ try{const r=await db.doc('responses/'+S.uid).get();if(r.exists){const x=r.data();S.me={name:x.name,email:x.email,sub:x.sub};S.a=x.a||{}}else{const l=JSON.parse(localStorage.getItem('rv'+S.uid)||'null');if(l){S.me=l.me||{};S.a=l.a||{}}}}catch(e){}
+ const f=S.items.findIndex(x=>!full(x));S.i=f>=0?f:0;go()})();
+</script></body></html>

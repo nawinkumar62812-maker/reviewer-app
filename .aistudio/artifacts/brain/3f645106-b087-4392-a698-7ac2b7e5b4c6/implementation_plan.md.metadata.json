@@ -1,0 +1,6 @@
+{
+  "summary":  "Complete product and technical specification for the Blinded Review Portal web application, covering product overview, core features, comprehensive user flows, screen-by-screen UI/UX specs, mobile-first touch design, WCAG 2.2 AA accessibility, full-stack Express architecture, database schema, strict blinding and privacy controls, MVP feature prioritization, and multi-phase implementation roadmap.",
+  "updatedAt":  "2026-11-02T08:33:52.993734684Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
