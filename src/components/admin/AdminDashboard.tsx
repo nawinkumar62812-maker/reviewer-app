@@ -41,6 +41,106 @@ import {
   resetTokenProgress,
 } from '../../services/api.ts';
 import { RubricEditorModal } from './RubricEditorModal.tsx';
+import { CircuitVisualizer } from '../reviewer/CircuitVisualizer.tsx';
+
+const BENCHMARK_CIRCUIT_SAMPLES = [
+  {
+    id: 'R001',
+    title: 'R001 · alarm_latch (Sync Priority Latch)',
+    ports: 'input wire clk, input wire rst_n, input wire sync_rst, input wire fault, output reg alarm',
+    code: `module alarm_latch (
+    input  wire clk,
+    input  wire rst_n,
+    input  wire sync_rst,
+    input  wire fault,
+    output reg  alarm
+);
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) alarm <= 1'b0;
+    else if (sync_rst) alarm <= 1'b0;
+    else if (fault) alarm <= 1'b1;
+end
+endmodule`,
+  },
+  {
+    id: 'R002',
+    title: 'R002 · fifo_2entry (2-Slot Circular FIFO)',
+    ports: 'input wire clk, input wire rst_n, input wire push, input wire pop, input wire [7:0] data_in, output wire [7:0] data_out, output wire full, output wire empty',
+    code: `module fifo_2entry (
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire       push,
+    input  wire       pop,
+    input  wire [7:0] data_in,
+    output wire [7:0] data_out,
+    output wire       full,
+    output wire       empty
+);
+    reg [7:0] mem [0:1];
+    reg [1:0] count;
+    reg wr_ptr;
+    reg rd_ptr;
+    always @(posedge clk or negedge rst_n) begin
+        if (push && !full) count <= count + 1'b1;
+    end
+endmodule`,
+  },
+  {
+    id: 'R003',
+    title: 'R003 · round_robin_arbiter_4 (4-Way Arbiter)',
+    ports: 'input wire clk, input wire rst_n, input wire [3:0] req, output reg [3:0] grant',
+    code: `module round_robin_arbiter_4 (
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire [3:0] req,
+    output reg  [3:0] grant
+);
+    reg [1:0] last_grant_ptr;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) grant <= 4'b0000;
+        else case (last_grant_ptr)
+            2'd0: if (req[1]) grant <= 4'b0010;
+        endcase
+    end
+endmodule`,
+  },
+  {
+    id: 'R004',
+    title: 'R004 · priority_encoder_8 (8-Bit Encoder)',
+    ports: 'input wire [7:0] in, output reg [2:0] code, output reg valid',
+    code: `module priority_encoder_8 (
+    input  wire [7:0] in,
+    output reg  [2:0] code,
+    output reg        valid
+);
+always @(*) begin
+    casex (in)
+        8'b1xxxxxxx: code = 3'd7;
+        default: valid = 1'b0;
+    endcase
+end
+endmodule`,
+  },
+  {
+    id: 'R005',
+    title: 'R005 · cdc_synchronizer (Dual-Flop CDC)',
+    ports: 'input wire clk, input wire rst_n, input wire async_pulse, output wire sync_pulse_out',
+    code: `module cdc_synchronizer (
+    input  wire clk,
+    input  wire rst_n,
+    input  wire async_pulse,
+    output wire sync_pulse_out
+);
+    reg meta_reg;
+    reg sync_reg;
+    reg prev_reg;
+    always @(posedge clk or negedge rst_n) begin
+        meta_reg <= async_pulse;
+    end
+    assign sync_pulse_out = sync_reg & ~prev_reg;
+endmodule`,
+  },
+];
 
 interface AdminDashboardProps {
   onOpenReviewerWorkspace: (token: string) => void;
@@ -58,6 +158,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenReviewerWo
   const [generateNames, setGenerateNames] = useState<string>('');
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
+  const [selectedSampleIdx, setSelectedSampleIdx] = useState<number>(0);
   const [actionMessage, setActionMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -442,6 +543,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenReviewerWo
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Interactive RTL Circuit Topology & Logic Analyzer Preview */}
+        <div className="rounded-2xl bg-white p-5 sm:p-6 shadow-xs border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-neutral-900 dark:text-white">
+                Interactive Dataset RTL Circuit Schematic & Waveform Inspector
+              </h2>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                Inspect synthesized gate-level topologies, toggle input pins, and verify clock-cycle waveforms across review items.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {BENCHMARK_CIRCUIT_SAMPLES.map((sample, idx) => (
+                <button
+                  key={sample.id}
+                  type="button"
+                  onClick={() => setSelectedSampleIdx(idx)}
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium transition-colors cursor-pointer ${
+                    selectedSampleIdx === idx
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'
+                  }`}
+                >
+                  {sample.title.split(' ')[0]} · {sample.title.split('·')[1]?.trim().split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <CircuitVisualizer
+            itemId={BENCHMARK_CIRCUIT_SAMPLES[selectedSampleIdx].id}
+            code={BENCHMARK_CIRCUIT_SAMPLES[selectedSampleIdx].code}
+            modulePorts={BENCHMARK_CIRCUIT_SAMPLES[selectedSampleIdx].ports}
+          />
         </div>
 
         {/* Link Generator Card */}

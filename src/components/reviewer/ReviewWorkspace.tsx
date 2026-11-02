@@ -35,6 +35,7 @@ import {
   getLocalBackup,
 } from '../../services/api.ts';
 import { ItemPaletteModal } from '../ItemPaletteModal.tsx';
+import { CircuitVisualizer } from './CircuitVisualizer.tsx';
 
 interface ReviewWorkspaceProps {
   token: string;
@@ -412,21 +413,29 @@ export const ReviewWorkspace: React.FC<ReviewWorkspaceProps> = ({
                   )}
                 </div>
 
-                {/* 3. Generated RTL Code Viewer */}
+                {/* 3. High-End Interactive Hardware Circuit Schematic & Waveform Visualizer */}
+                <CircuitVisualizer
+                  itemId={currentItem.id}
+                  code={currentItem.generated_response}
+                  modulePorts={currentItem.module_ports}
+                />
+
+                {/* 4. Generated RTL Code Viewer */}
                 <div className="rounded-2xl bg-white shadow-xs border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 overflow-hidden">
                   <div className="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 px-5 py-3 bg-neutral-50 dark:bg-neutral-800/50">
                     <div className="flex items-center gap-2">
                       <Code2 className="h-4 w-4 text-neutral-500" />
                       <span className="text-xs font-semibold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-                        Generated RTL Response
+                        Generated RTL Source
                       </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-200/80 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
-                        {currentItem.code_language.toUpperCase()}
+                      <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">
+                        · {currentItem.code_language.toUpperCase()}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => setWrapCode(!wrapCode)}
                         className={`rounded px-2 py-1 text-[11px] font-medium transition-colors ${
                           wrapCode
@@ -438,6 +447,7 @@ export const ReviewWorkspace: React.FC<ReviewWorkspaceProps> = ({
                       </button>
 
                       <button
+                        type="button"
                         onClick={handleCopyCode}
                         className="flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 transition-colors"
                         title="Copy code"
@@ -457,12 +467,23 @@ export const ReviewWorkspace: React.FC<ReviewWorkspaceProps> = ({
                     </div>
                   </div>
 
-                  <div className="relative p-4 overflow-x-auto bg-neutral-900 text-neutral-100 font-mono text-xs sm:text-[13px] leading-relaxed">
+                  <div className="relative p-4 overflow-x-auto bg-slate-950 text-slate-100 font-mono text-xs sm:text-[13px] leading-relaxed">
                     <pre
                       tabIndex={0}
                       className={`${wrapCode ? 'whitespace-pre-wrap' : 'whitespace-pre'} focus:outline-none`}
                     >
-                      <code>{currentItem.generated_response || '// (Empty code response)'}</code>
+                      <code>
+                        {(currentItem.generated_response || '// (Empty code response)')
+                          .split('\n')
+                          .map((line, lineIdx) => (
+                            <div key={lineIdx} className="table-row hover:bg-slate-900/80">
+                              <span className="table-cell select-none pr-4 text-right text-[11px] text-slate-600 tabular-nums w-8">
+                                {lineIdx + 1}
+                              </span>
+                              <span className="table-cell">{line}</span>
+                            </div>
+                          ))}
+                      </code>
                     </pre>
                   </div>
                 </div>
